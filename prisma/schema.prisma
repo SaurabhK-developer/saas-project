@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RestaurantStatus {
+  ACTIVE
+  BLOCKED
+  PENDING
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+}
+
+enum OrderStatus {
+  PLACED
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model Restaurant {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String           @unique
+  status    RestaurantStatus @default(ACTIVE)
+  phone     String?
+  email     String?
+  address   String?
+  currency  String           @default("INR") @db.VarChar(3)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  users         User[]
+  tables        DiningTable[]
+  categories    Category[]
+  dishes        Dish[]
+  orders        Order[]
+  subscriptions Subscription[]
+
+  @@index([status])
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  restaurantId String?  @db.Uuid
+  authUserId  String?  @unique @db.Uuid
+  email       String   @unique
+  name        String?
+  role        UserRole @default(MANAGER)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, role])
+}
+
+model DiningTable {
+  id          String   @id @default(uuid()) @db.Uuid
+  restaurantId String  @db.Uuid
+  number      String
+  name        String?
+  capacity    Int?
+  qrToken     String   @unique @default(cuid())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@unique([id, restaurantId])
+  @@unique([restaurantId, number])
+  @@index([restaurantId, isActive])
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  restaurantId String  @db.Uuid
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  dishes     Dish[]
+
+  @@unique([id, restaurantId])
+  @@unique([restaurantId, name])
+  @@index([restaurantId, isActive, sortOrder])
+}
+
+model Dish {
+  id          String   @id @default(uuid()) @db.Uuid
+  restaurantId String  @db.Uuid
+  categoryId  String   @db.Uuid
+  name        String
+  description String?
+  imageUrl    String?
+  price       Decimal  @db.Decimal(10, 2)
+  isAvailable Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId, restaurantId], references: [id, restaurantId], onDelete: Restrict)
+  orderItems OrderItem[]
+
+  @@unique([id, restaurantId])
+  @@index([restaurantId, categoryId, isAvailable])
+}
+
+model Order {
+  id            String      @id @default(uuid()) @db.Uuid
+  orderNumber   Int         @unique @default(autoincrement())
+  trackingToken String      @unique @default(cuid())
+  restaurantId  String      @db.Uuid
+  tableId       String      @db.Uuid
+  status        OrderStatus @default(PLACED)
+  customerName  String?
+  customerPhone String?
+  notes         String?
+  subtotal      Decimal     @db.Decimal(10, 2)
+  tax           Decimal     @default(0) @db.Decimal(10, 2)
+  total         Decimal     @db.Decimal(10, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      DiningTable @relation(fields: [tableId, restaurantId], references: [id, restaurantId], onDelete: Restrict)
+  items      OrderItem[]
+
+  @@unique([id, restaurantId])
+  @@index([restaurantId, status, createdAt])
+  @@index([restaurantId, tableId, createdAt])
+}
+
+model OrderItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  restaurantId String   @db.Uuid
+  orderId      String   @db.Uuid
+  dishId       String   @db.Uuid
+  dishName     String
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  quantity     Int
+  lineTotal    Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+
+  order Order @relation(fields: [orderId, restaurantId], references: [id, restaurantId], onDelete: Cascade)
+  dish  Dish  @relation(fields: [dishId, restaurantId], references: [id, restaurantId], onDelete: Restrict)
+
+  @@index([restaurantId, orderId])
+  @@index([restaurantId, dishId])
+}
+
+model SubscriptionPlan {
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String   @unique
+  description       String?
+  price             Decimal  @db.Decimal(10, 2)
+  billingInterval   String   @default("MONTHLY")
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  restaurantId           String             @db.Uuid
+  planId                 String             @db.Uuid
+  status                 SubscriptionStatus @default(TRIALING)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  externalSubscriptionId String?            @unique
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  restaurant Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  plan       SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId, status])
+  @@index([planId])
+}

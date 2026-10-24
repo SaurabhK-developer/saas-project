@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tablefolk — Restaurant Menu Demo
 
-## Getting Started
+A responsive QR-menu and restaurant-dashboard MVP prototype built with Next.js.
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The dashboard starts with sample restaurant data. Use **Preview menu** or open the customer menu URL below, add items to the bag, and place a demo order. The order appears in the dashboard's live-orders view. Menu changes, orders, and table changes are saved in this browser's local storage.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/admin` — dashboard overview
+- `/admin/orders` — live orders
+- `/admin/menu` — menu editor
+- `/admin/tables` — tables and downloadable QR codes
+- `/admin/reports` — sales and order history
+- `/r/the-garden-cafe?table=04` — customer menu for a table (QR destination)
 
-## Learn More
+## Included in this prototype
 
-To learn more about Next.js, take a look at the following resources:
+- Customer menu with category filters, item availability, cart, and order placement
+- Restaurant dashboard with overview, order status workflow, menu editing, tables, and reports
+- Per-table QR generation with PNG download
+- Prisma PostgreSQL schema in `prisma/schema.prisma`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Table QR links open the customer menu directly. When running locally, a QR code made at `localhost` only works on that same computer; to scan it with a phone, access the app using the computer's LAN IP on the same Wi-Fi, or deploy the app and generate the QR from its public URL.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database and production setup
 
-## Deploy on Vercel
+The current interface is a **browser-local demo**, not a multi-user production service. It does not yet connect to PostgreSQL/Supabase, and it has no real authentication, API persistence, cross-device live updates, or payment/subscription processing. The included Prisma schema is a design artifact; no database migration has been applied.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+To make the demo persistent across users and devices, configure a PostgreSQL/Supabase project and `DATABASE_URL`, install/configure Prisma in the app, apply migrations, and replace local-storage reads/writes with authenticated server-side APIs. Add Supabase Auth (or another auth provider) and realtime subscriptions before using it with a real restaurant. Never put database credentials in client-side code.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Validate
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
